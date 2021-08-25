@@ -51,46 +51,12 @@ let parseAuthor length (dir: String) =
         |> printMostPopular name
     }
 
-
-type CliArgs =
-    | Author of name: string
-    | Length of len: int32
-
-    interface IArgParserTemplate with
-        member s.Usage =
-            match s with
-            | Author _ -> "Parse only author <name>. If ommited, runs all authors in Texts/ directory"
-            | Length _ -> "How long should the ngram be"
-
-
-let getParams args = 
-    let parser = ArgumentParser.Create<CliArgs>()
-    let results = parser.Parse args
-
-    let maybeAuthor = results.TryGetResult Author
-    let len = results.TryGetResult Length
-
-    let dirs =
-        List.ofSeq (Directory.EnumerateDirectories dir)
-
-    let author = 
-        match maybeAuthor with
-        | Some author -> [ dir + author ]
-        | None -> dirs
-
-    let length = 
-        match len with
-        | Some l -> l
-        | None -> 3
-
-    (author, length)
-
-
 [<EntryPoint>]
 let main args =
     let now = DateTime.Now
 
-    let (authors, len) = getParams args
+    let authors = List.ofSeq(Directory.EnumerateDirectories dir)
+    let len = 3
 
     authors
     |> Seq.map (parseAuthor len)

@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"flag"
 	"fmt"
 	"os"
 	"strings"
@@ -32,7 +31,7 @@ func check(e error) {
 func main() {
 	start := time.Now()
 
-	authors, ngram := parseArgs()
+	authors, ngram := readDir()
 
     wg := &sync.WaitGroup{}
     wg.Add(len(authors))
@@ -98,37 +97,13 @@ func parseFile(filepath string, ngramlength int, li *Liste) {
 	}
 }
 
-func parseArgs() ([]string, int) {
-	var auteurs []string
-	auteur := flag.String("a", "", "If present, parses only this author directory in directory Texts/")
-	all := flag.Bool("A", false, "If present, parses all authors directories in directory Texts/")
-	length := flag.Int("n", 2, "Specifies the length of the n-gram")
-	flag.Parse()
-
-	if !*all && *auteur == "" {
-		flag.PrintDefaults()
-		panic("")
-	}
-
-	if *all && *auteur != "" {
-		panic("-A and -a are mutually exclusive")
-	}
-
+func readDir() ([]string, int) {
 	openedDir, err := os.Open(dir)
 	check(err)
 	defer openedDir.Close()
 
 	dirs, err := openedDir.Readdirnames(0)
 	check(err)
-	if *all {
-		auteurs = dirs
-	} else {
-		for _, d := range dirs {
-			if d == *auteur {
-				auteurs = append(auteurs, d)
-			}
-		}
-	}
 
-	return auteurs, *length
+	return dirs, len(dirs)
 }
