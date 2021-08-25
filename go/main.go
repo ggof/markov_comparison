@@ -15,35 +15,34 @@ const (
 	printer = "Auteur \"%s\": \"%s\" avec %d repetitions\n"
 )
 
-type Word struct {
-	Word  string
-	Count int64
-}
+func main() {
+	start := time.Now()
 
-type List struct {
-	Author string
-	Words  map[string]Word
-}
+	authors, ngram := readDir()
 
-func NewList(author string) *List {
-	return &List{Author: author, Words: make(map[string]Word)}
-}
+	wg := &sync.WaitGroup{}
+	wg.Add(len(authors))
 
-func (l *List) add(mot string) {
-	if w, ok := l.Words[mot]; ok {
-		w.Count += 1
-		l.Words[mot] = w
-	} else {
-		l.Words[mot] = Word{Word: mot, Count: 1}
+	for _, dir := range authors {
+		go Parse(dir, ngram, wg)
 	}
+
+	wg.Wait()
+
+	fmt.Println("Done parsing and sorting. took ", time.Since(start).String())
 }
 
-func (l *List) Max() Word {
-	var max Word
+type Entry struct {
+	Value string
+	Count int
+}
 
-	for _, value := range l.Words {
-		if value.Count > max.Count {
-			max = value
+func getMax(m map[string]int) Entry {
+	var max Entry
+
+	for key, value := range m {
+		if value > max.Count {
+			max = Entry{Value: key, Count: value}
 		}
 	}
 
@@ -63,26 +62,7 @@ func check(e error) {
 	}
 }
 
-func main() {
-	start := time.Now()
-
-	authors, ngram := readDir()
-
-	wg := &sync.WaitGroup{}
-	wg.Add(len(authors))
-
-	for _, dir := range authors {
-		go Parse(dir, ngram, wg)
-	}
-
-	wg.Wait()
-
-	fmt.Println("Done parsing and sorting. took ", time.Since(start).String())
-}
-
 func Parse(author string, ngram int, wg *sync.WaitGroup) {
-	li := NewList(author)
-
 	path := dir + author
 
 	dir, err := os.Open(path)
@@ -92,19 +72,21 @@ func Parse(author string, ngram int, wg *sync.WaitGroup) {
 	filenames, err := dir.Readdir(0)
 	check(err)
 
+	acc := make(map[string]int)
+
 	for _, file := range filenames {
 		filepath := path + "/" + file.Name()
-		parseFile(filepath, ngram, li)
+		parseFile(filepath, ngram, &acc)
 	}
 
-	max := li.Max()
+	max := getMax(acc)
 
-	fmt.Printf(printer, li.Author, max.Word, max.Count)
+	fmt.Printf(printer, author, max.Value, max.Count)
 
 	wg.Done()
 }
 
-func parseFile(filepath string, ngramlength int, li *List) {
+func parseFile(filepath string, ngramlength int, acc *map[string]int) {
 	var ngram []string
 
 	file, err := os.Open(filepath)
@@ -123,8 +105,8 @@ func parseFile(filepath string, ngramlength int, li *List) {
 
 			ngram = append(ngram, word)
 
-			if len(ngram) > ngramlength-1 {
-				li.add(strings.Join(ngram, " "))
+			if len(ngram) == ngramlength {
+				(*acc)[strings.Join(ngram, " ")] += 1
 				ngram = ngram[1:]
 			}
 		}
@@ -139,5 +121,5 @@ func readDir() ([]string, int) {
 	dirs, err := openedDir.Readdirnames(0)
 	check(err)
 
-	return dirs, len(dirs)
+	return dirs, 3
 }
