@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "xyz.ggof.markov"
-version = "1.0-SNAPSHOT"
+version = "1.0"
 
 repositories {
     mavenCentral()
@@ -16,9 +16,9 @@ dependencies {
 }
 
 tasks.withType<KotlinCompile> {
-    kotlinOptions.jvmTarget = "1.8"
+    kotlinOptions.jvmTarget = "16"
 }
 
 application {
-    mainClassName = "MainKt"
+    mainClass.set("MainKt")
 }
