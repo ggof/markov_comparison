@@ -10,10 +10,45 @@ import (
 )
 
 const (
-    punc = ",./\\\"'?!:;[]{}|()-_\n\t"
-    dir = "../Texts/"
-    printer = "Auteur \"%s\": \"%s\" avec %d repetitions\n"
+	punc    = ",./\\\"'?!:;[]{}|()-_\n\t"
+	dir     = "../Texts/"
+	printer = "Auteur \"%s\": \"%s\" avec %d repetitions\n"
 )
+
+type Word struct {
+	Word  string
+	Count int64
+}
+
+type List struct {
+	Author string
+	Words  map[string]Word
+}
+
+func NewList(author string) *List {
+	return &List{Author: author, Words: make(map[string]Word)}
+}
+
+func (l *List) add(mot string) {
+	if w, ok := l.Words[mot]; ok {
+		w.Count += 1
+		l.Words[mot] = w
+	} else {
+		l.Words[mot] = Word{Word: mot, Count: 1}
+	}
+}
+
+func (l *List) Max() Word {
+	var max Word
+
+	for _, value := range l.Words {
+		if value.Count > max.Count {
+			max = value
+		}
+	}
+
+	return max
+}
 
 func format(s string) string {
 	for _, p := range punc {
@@ -33,23 +68,22 @@ func main() {
 
 	authors, ngram := readDir()
 
-    wg := &sync.WaitGroup{}
-    wg.Add(len(authors))
+	wg := &sync.WaitGroup{}
+	wg.Add(len(authors))
 
 	for _, dir := range authors {
 		go Parse(dir, ngram, wg)
 	}
 
-    wg.Wait()
+	wg.Wait()
 
 	fmt.Println("Done parsing and sorting. took ", time.Since(start).String())
 }
 
-
 func Parse(author string, ngram int, wg *sync.WaitGroup) {
-	li := NewListe(author)
+	li := NewList(author)
 
-    path := dir + author
+	path := dir + author
 
 	dir, err := os.Open(path)
 	check(err)
@@ -63,14 +97,14 @@ func Parse(author string, ngram int, wg *sync.WaitGroup) {
 		parseFile(filepath, ngram, li)
 	}
 
-    max := li.Max()
+	max := li.Max()
 
-    fmt.Printf(printer,li.Author, max.Word, max.Count )
+	fmt.Printf(printer, li.Author, max.Word, max.Count)
 
-    wg.Done()
+	wg.Done()
 }
 
-func parseFile(filepath string, ngramlength int, li *Liste) {
+func parseFile(filepath string, ngramlength int, li *List) {
 	var ngram []string
 
 	file, err := os.Open(filepath)
