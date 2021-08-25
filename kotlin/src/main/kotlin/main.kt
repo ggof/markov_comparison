@@ -6,12 +6,12 @@ import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
-const val bannedChars = ",./\\\"'?!:;[]{}|()-_\n\t"
+val bannedChars = """[,.\\\/\"\'\?!:;\[\]\{\}\|\(\)-_\n\t]""".toRegex()
 
 fun toBigWordsWithoutDelimiters(line: String): List<String> =
 	line
 		.lowercase(Locale.getDefault())
-		.filterNot { bannedChars.contains(it) }
+        .replace(bannedChars, " ")
 		.split(" ")
 		.filter { it.length > 2 }
 
