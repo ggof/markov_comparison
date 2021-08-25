@@ -1,7 +1,6 @@
 // Learn more about F# at http://docs.microsoft.com/dotnet/fsharp
 open System
 open System.IO
-open Argu
 
 let badChars = ",./\\\"'?!:;[]{}|()-_\n\t"
 let dir = "../Texts/"
@@ -23,33 +22,27 @@ let bigWordsWithoutBadChars =
     >> removeSmallWords
 
 
-let parseFile len name = async {
-    return File.ReadLines name
+let parseFile len name = 
+    File.ReadLines name
     |> Seq.collect bigWordsWithoutBadChars
     |> Seq.windowed len
-}
 
 let printMostPopular author (ngram, times) =
     printfn $"Auteur \"%s{author}\": \"%s{ngram}\" avec %d{times} repetitions"
 
-let parseAuthor length (dir: String) =
+let parseAuthor length (dir: String) = async {
+
     let len (_, len) = len
+    let name = dir.Split "/" |> Array.last
 
-    async {
-        let name = dir.Split "/" |> Array.last
-
-        let! ngrams = 
-            dir
-            |> Directory.EnumerateFiles
-            |> Seq.map (parseFile length)
-            |> Async.Parallel
-
-        ngrams
-        |> Seq.concat
-        |> Seq.countBy (String.concat " ")
-        |> Seq.maxBy len
-        |> printMostPopular name
-    }
+    dir
+    |> Directory.EnumerateFiles
+    |> Seq.map (parseFile length)
+    |> Seq.concat
+    |> Seq.countBy (String.concat " ")
+    |> Seq.maxBy len
+    |> printMostPopular name
+}
 
 [<EntryPoint>]
 let main args =
