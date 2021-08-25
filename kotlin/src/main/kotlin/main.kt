@@ -34,7 +34,7 @@ fun parseAuthor(dir: String) {
 
     if (fav != null) {
         val author = dir.split("/").last()
-        println("Le ngram le plus répété de $author est ${fav.key} avec ${fav.value} répétitions")
+        println("Auteur \"$author\": \"${fav.key}\" avec ${fav.value} repetitions")
     } else {
         println("pas de ngram (oups?)")
     }
@@ -48,7 +48,7 @@ fun main(args: Array<String>) = runBlocking {
 
     File(dir)
             .walk()
-            .filter { it.isDirectory && it.name != dir }
+            .filter { it.isDirectory && it.name != "Texts"}
             .map { launch { parseAuthor(it.path) } }
             .joinAll()
 
