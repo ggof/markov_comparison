@@ -26,3 +26,6 @@ ex_markov-*.tar
 /tmp/
 
 /markov
+
+.fake
+.ionide

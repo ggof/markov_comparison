@@ -1,5 +1,5 @@
-// Learn more about F# at http://docs.microsoft.com/dotnet/fsharp
 open System
+open System.Collections.Generic
 open System.IO
 
 let badChars = ",./\\\"'?!:;[]{}|()-_\n\t"
@@ -12,50 +12,70 @@ let removeUnwantedCharacters (line: String) =
 
 let splitInWords (line: String) = line.Split ' '
 
-let smallWords word = (String.length word) > 2
-
-let removeSmallWords = Seq.filter smallWords
+let bigWords word = String.length word > 2
 
 let bigWordsWithoutBadChars =
     removeUnwantedCharacters
     >> splitInWords
-    >> removeSmallWords
+    >> Seq.filter bigWords
 
-
-let parseFile len name = 
+let parseFile len name =
     File.ReadLines name
     |> Seq.collect bigWordsWithoutBadChars
     |> Seq.windowed len
 
-let printMostPopular author (ngram, times) =
+let parseFileAsync len name = async { return parseFile len name }
+
+let printMostPopular (author, ngram, times) =
     printfn $"Auteur \"%s{author}\": \"%s{ngram}\" avec %d{times} repetitions"
 
-let parseAuthor length (dir: String) = async {
+let readAsync len (file: String) =
+    async {
+        let reader = new StreamReader(file)
+        let! content = reader.ReadToEndAsync() |> Async.AwaitTask
 
-    let len (_, len) = len
-    let name = dir.Split "/" |> Array.last
+        return
+            content
+            |> bigWordsWithoutBadChars
+            |> Seq.windowed len
+    }
 
-    dir
-    |> Directory.EnumerateFiles
-    |> Seq.map (parseFile length)
-    |> Seq.concat
-    |> Seq.countBy (String.concat " ")
-    |> Seq.maxBy len
-    |> printMostPopular name
-}
+let parseAuthor length (dir: String) =
+    async {
+        let len (_, len) = len
+        let name = dir.Split "/" |> Array.last
+
+        let! seq =
+            dir
+            |> Directory.EnumerateFiles
+            |> Seq.map (readAsync length)
+            |> Async.Parallel
+
+        let ngram, value =
+            seq
+            |> Seq.concat
+            |> Seq.countBy (String.concat " ")
+            |> Seq.maxBy len
+
+        return (name, ngram, value)
+    }
+
+let getLenOrDefault =
+    Array.tryHead
+    >> Option.map int
+    >> Option.defaultValue 3
 
 [<EntryPoint>]
 let main args =
     let now = DateTime.Now
 
-    let authors = List.ofSeq(Directory.EnumerateDirectories dir)
-    let len = 3
+    let len = getLenOrDefault args
 
-    authors
+    Directory.EnumerateDirectories dir
     |> Seq.map (parseAuthor len)
     |> Async.Parallel
     |> Async.RunSynchronously
-    |> ignore
+    |> Seq.iter printMostPopular
 
     printfn $"Done executing. Took %f{(DateTime.Now - now).TotalMilliseconds} ms"
     0 // return an integer exit code

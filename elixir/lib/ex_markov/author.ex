@@ -1,23 +1,33 @@
 defmodule ExMarkov.Author do
-    defp to_task(path, text, len) do
-        Task.async(fn -> ExMarkov.Text.parse_file("#{path}/#{text}", len) end)
-    end
+  alias ExMarkov.Text
 
-    defp value({_k, v}) do
-      v
-    end
+  defp to_task(path, text, len) do
+    Task.async(fn -> Text.parse_file("#{path}/#{text}", len) end)
+  end
 
-    def parse_author(path, len) do
-        {ngram, reps} = File.ls!(path)
-        |> Enum.map(fn x -> to_task(path, x, len) end)
-        |> Task.await_many()
-        |> Enum.reduce(Map.new(), fn x, acc -> Map.merge(x, acc, fn _, a, b -> a + b end) end)
-        |> Enum.max_by(&value/1)
+  defp print({ngram, reps}, author) do
+    IO.puts("Auteur \"#{author}\": \"#{ngram}\" avec #{reps} repetitions")
+  end
 
-        author = path
-        |> String.split("/")
-        |> List.last()
+  defp reducer(x, acc) do
+    Map.merge(x, acc, fn _, v1, v2 -> v1 + v2 end)
+  end
 
-        IO.puts "Auteur \"#{author}\": \"#{ngram}\" avec #{reps} repetitions"
-    end
+  defp value({_, v}) do
+    v
+  end
+
+  def parse_author(path, len) do
+    author =
+      path
+      |> String.split("/")
+      |> List.last()
+
+    File.ls!(path)
+    |> Enum.map(fn x -> to_task(path, x, len) end)
+    |> Task.await_many()
+    |> Enum.reduce(Map.new(), &reducer/2)
+    |> Enum.max_by(&value/1)
+    |> print(author)
+  end
 end

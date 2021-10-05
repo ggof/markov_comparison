@@ -10,50 +10,37 @@ import (
 )
 
 const (
-	punc    = ",./\\\"'?!:;[]{}|()-_\n\t"
-	dir     = "../Texts/"
-	printer = "Auteur \"%s\": \"%s\" avec %d repetitions\n"
+	punc        = ",./\\\"'?!:;[]{}|()-_\n\t"
+	dir         = "../Texts/"
+	fmtResult   = "Auteur \"%s\": \"%s\" avec %d repetitions\n"
+	sizeOfNGram = 3
 )
 
 func main() {
 	start := time.Now()
 
-	authors, ngram := readDir()
+	authors := readDir()
 
-	wg := &sync.WaitGroup{}
+	wg := sync.WaitGroup{}
 	wg.Add(len(authors))
 
-	for _, dir := range authors {
-		go Parse(dir, ngram, wg)
+	for _, author := range authors {
+		go Parse(author, sizeOfNGram, wg.Done)
 	}
 
 	wg.Wait()
-
 	fmt.Println("Done parsing and sorting. took ", time.Since(start).String())
 }
 
-type Entry struct {
-	Value string
-	Count int
-}
+func readDir() []string {
+	dirs, err := os.ReadDir(dir)
+	check(err)
 
-func getMax(m map[string]int) Entry {
-	var max Entry
-
-	for key, value := range m {
-		if value > max.Count {
-			max = Entry{Value: key, Count: value}
-		}
+	names := make([]string, len(dirs))
+	for i, dir := range dirs {
+		names[i] = dir.Name()
 	}
-
-	return max
-}
-
-func format(s string) string {
-	for _, p := range punc {
-		s = strings.ReplaceAll(s, string(p), " ")
-	}
-	return strings.ToLower(s)
+	return names
 }
 
 func check(e error) {
@@ -62,44 +49,37 @@ func check(e error) {
 	}
 }
 
-func Parse(author string, ngram int, wg *sync.WaitGroup) {
+func Parse(author string, size int, done func()) {
 	path := dir + author
 
-	dir, err := os.Open(path)
-	check(err)
-	defer dir.Close()
-
-	filenames, err := dir.Readdir(0)
+	files, err := os.ReadDir(path)
 	check(err)
 
 	acc := make(map[string]int)
 
-	for _, file := range filenames {
+	for _, file := range files {
 		filepath := path + "/" + file.Name()
-		parseFile(filepath, ngram, &acc)
+		parseFile(filepath, size, &acc)
 	}
 
-	max := getMax(acc)
+	key, val := max(acc)
+	fmt.Printf(fmtResult, author, key, val)
 
-	fmt.Printf(printer, author, max.Value, max.Count)
-
-	wg.Done()
+	done()
 }
 
-func parseFile(filepath string, ngramlength int, acc *map[string]int) {
-	var ngram []string
+func parseFile(path string, ngramlength int, acc *map[string]int) {
+	ngram := make([]string, 0, ngramlength)
 
-	file, err := os.Open(filepath)
-	check(err)
+	file, err := os.Open(path)
 	defer file.Close()
+	check(err)
 
 	scanner := bufio.NewScanner(file)
 
 	for scanner.Scan() {
-		line := scanner.Text()
-		line = format(line)
-		for _, word := range strings.Split(line, " ") {
-			if len(word) < 3 {
+		for _, word := range formattedWords(scanner.Text()) {
+			if isTooShort(word) {
 				continue
 			}
 
@@ -113,13 +93,26 @@ func parseFile(filepath string, ngramlength int, acc *map[string]int) {
 	}
 }
 
-func readDir() ([]string, int) {
-	openedDir, err := os.Open(dir)
-	check(err)
-	defer openedDir.Close()
+func formattedWords(line string) []string {
+	return strings.Split(format(line), " ")
+}
 
-	dirs, err := openedDir.Readdirnames(0)
-	check(err)
+func isTooShort(word string) bool {
+	return len(word) < 3
+}
 
-	return dirs, 3
+func format(s string) string {
+	for _, p := range punc {
+		s = strings.ReplaceAll(s, string(p), " ")
+	}
+	return strings.ToLower(s)
+}
+
+func max(m map[string]int) (max string, count int) {
+	for key, value := range m {
+		if value > count {
+			max, count = key, value
+		}
+	}
+	return
 }
